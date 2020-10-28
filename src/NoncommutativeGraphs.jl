@@ -1,15 +1,20 @@
 module NoncommutativeGraphs
 
+import Base.==
+
 using Subspaces
 using Convex, SCS, LinearAlgebra
 
+export AlgebraShape
 export S0Graph
 export random_S0Graph, complement, vertex_graph, forget_S0
+export from_block_spaces, get_block_spaces
+
 export Ψ
 export dsw_schur!, dsw_schur2!, dsw
 export dsw_min_X_diag
-export daw_antiblocker
-export daw_antiblocker_S0
+export dsw_antiblocker
+export dsw_antiblocker_S0
 
 AlgebraShape = Array{<:Integer, 2}
 
@@ -99,9 +104,81 @@ end
 
 complement(g::S0Graph) = S0Graph(g.sig, perp(g.S) | g.S0)
 
+function ==(a::S0Graph, b::S0Graph)
+    return a.sig == b.sig && a.S == b.S
+end
+
+function get_block_spaces(g::S0Graph)
+    num_blocks = size(g.sig, 1)
+    da_sizes = g.sig[:,1]
+    dy_sizes = g.sig[:,2]
+    n_sizes = da_sizes .* dy_sizes
+
+    blkspaces = Array{Subspace{Complex{Float64}}, 2}(undef, num_blocks, num_blocks)
+    offseti = 0
+    for blki in 1:num_blocks
+        offsetj = 0
+        for blkj in 1:num_blocks
+            #@show [blki, blkj, offseti, offsetj]
+            blkbasis = Array{Array{Complex{Float64}, 2}, 1}()
+            for m in each_basis_element(g.S)
+                blk = m[1+offseti:dy_sizes[blki]+offseti, 1+offsetj:dy_sizes[blkj]+offsetj]
+                push!(blkbasis, blk)
+            end
+            blkspaces[blki, blkj] = Subspace(blkbasis)
+            #println(blkspaces[blki, blkj])
+            offsetj += n_sizes[blkj]
+        end
+        @assert offsetj == shape(g.S)[2]
+        offseti += n_sizes[blki]
+    end
+    @assert offseti == shape(g.S)[1]
+
+    return blkspaces
+end
+
+function from_block_spaces(sig::AlgebraShape, blkspaces::Array{Subspace{Complex{Float64}}, 2})
+    S0, S1 = NoncommutativeGraphs.create_S0_S1(sig)
+
+    num_blocks = size(sig, 1)
+    function block(col, row)
+        da_col, dy_col = sig[col,:]
+        da_row, dy_row = sig[row,:]
+        ds = Integer(round(sqrt(dy_row * dy_col) / 2.0))
+        F = full_subspace((da_row, da_col))
+        kron(F, blkspaces[row, col])
+    end
+    blocks = [
+        block(col, row)
+        for col in 1:num_blocks, row in 1:num_blocks
+    ]
+
+    S = hvcat(num_blocks, blocks...)
+    S |= S'
+    S |= S0
+
+    return S0Graph(sig, S)
+end
+
 ###############
 ### DSW solvers
 ###############
+
+function diagcat(args::Convex.AbstractExprOrValue...)
+    # FIXME Convex.jl doesn't support cat(args..., dims=(1,2)).  It should be added.
+
+    num_blocks = size(args, 1)
+    #if num_blocks == 1
+    #    return args[1]
+    #end
+    return vcat([
+        hcat([
+            row == col ? args[row] : zeros(size(args[row], 1), size(args[col], 2))
+            for col in 1:num_blocks
+        ]...)
+        for row in 1:num_blocks
+    ]...)
+end
 
 function Ψ(g::S0Graph, w::Union{AbstractArray{<:Number, 2}, Variable})
     n = g.n
@@ -120,15 +197,7 @@ function Ψ(g::S0Graph, w::Union{AbstractArray{<:Number, 2}, Variable})
         push!(blocks, blk)
     end
     @assert k == n
-    # Convex.jl doesn't support this function
-    #out = cat(blocks..., dims=(1,2))
-    out = vcat([
-        hcat([
-            row == col ? blocks[row] : zeros(n_sizes[row], n_sizes[col])
-            for col in 1:num_blocks
-        ]...)
-        for row in 1:num_blocks
-    ]...)
+    out = diagcat(blocks...)
     @assert size(out) == (n, n)
     return out
 end
@@ -154,27 +223,130 @@ function dsw_schur!(constraints::Array{Constraint,1}, g::S0Graph)
     return lambda, w, Z
 end
 
+#function dsw_schur2!(constraints::Array{Constraint,1}, g::S0Graph)
+#    lambda, x, Z = dsw_schur!(constraints, g)
+#
+#    # FIXME should exploit symmetries to reduce degrees of freedom
+#    # (e.g. if S1=diags then Z is block diagonal)
+#    for m in each_basis_element(perp(g.S1))
+#        push!(constraints, tr(m' * x) == 0)
+#    end
+#
+#    return lambda, x, Z
+#end
+#
+#function dsw_min_X_diag(g::S0Graph, w::AbstractArray{<:Number, 2})
+#    constraints = Array{Constraint,1}()
+#    lambda, x, Z = dsw_schur2!(constraints, g)
+#
+#    push!(constraints, x ⪰ w)
+#    problem = minimize(lambda, constraints)
+#
+#    solve!(problem, () -> SCS.Optimizer(verbose=0))
+#
+#    x = evaluate(x)
+#    xproj = projection(g.S1, x)
+#    println("proj err: ", norm(x - xproj))
+#    return problem.optval, xproj, evaluate(Z)
+#end
+
+# Like dsw_schur except much faster and w is constrained to S1.
 function dsw_schur2!(constraints::Array{Constraint,1}, g::S0Graph)
-    lambda, x, Z = dsw_schur!(constraints, g)
+    da_sizes = g.sig[:,1]
+    dy_sizes = g.sig[:,2]
+    n_sizes = da_sizes .* dy_sizes
+    num_blocks = size(g.sig)[1]
+    d = sum(dy_sizes .^ 2)
 
-    # FIXME should exploit symmetries to reduce degrees of freedom
-    # (e.g. if S1=diags then Z is block diagonal)
-    for m in each_basis_element(perp(g.S1))
-        push!(constraints, tr(m' * x) == 0)
+    eye(n) = Matrix(1.0*I, (n,n))
+
+    blkspaces = get_block_spaces(g)
+    Z = ComplexVariable(d, d)
+
+    blkw = []
+    offseti = 0
+    for blki in 1:num_blocks
+        offsetj = 0
+        ni = dy_sizes[blki]^2
+        for blkj in 1:num_blocks
+            nj = dy_sizes[blkj]^2
+            #@show [ni, nj]
+            #@show [1+offseti:ni+offseti, 1+offsetj:nj+offsetj]
+            blkZ = Z[1+offseti:ni+offseti, 1+offsetj:nj+offsetj]
+            #@show size(blkZ)
+            if blkj <= blki
+                p = kron(
+                    perp(blkspaces[blki, blkj]),
+                    full_subspace((dy_sizes[blki], dy_sizes[blkj])))
+                for m in each_basis_element(p)
+                    push!(constraints, tr(m' * blkZ) == 0)
+                end
+            end
+            if blkj == blki
+                wi = partialtrace(blkZ, 1, [dy_sizes[blki], dy_sizes[blkj]])
+                push!(blkw, wi)
+            end
+            offsetj += nj
+        end
+        #@show [offsetj, d]
+        @assert offsetj == d
+        offseti += ni
     end
+    @assert offseti == d
 
-    return lambda, x, Z
+    #@show [ size(wi) for wi in blkw ]
+
+    lambda = Variable()
+    wv = vcat([ reshape(wi, dy_sizes[i]^2, 1) for (i,wi) in enumerate(blkw) ]...)
+    #@show size(wv)
+    #@show size(Z)
+
+    push!(constraints, [ lambda  wv' ; wv  Z ] ⪰ 0)
+
+    w = diagcat([ kron(eye(da_sizes[i]), wi) for (i,wi) in enumerate(blkw) ]...)
+    #@show size(w)
+
+    # FIXME maybe need transpose
+    return lambda, w, Z
 end
 
-function dsw(g::S0Graph, w::AbstractArray{<:Number, 2})
-    constraints = Array{Constraint,1}()
-    lambda, x, Z = dsw_schur!(constraints, g)
+function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true)
+    if use_diag_optimization
+        return dsw_min_X_diag(g, w)
+    else
+        constraints = Array{Constraint,1}()
+        lambda, x, Z = dsw_schur!(constraints, g)
 
-    push!(constraints, x ⪰ w)
-    problem = minimize(lambda, constraints)
+        push!(constraints, x ⪰ w)
+        problem = minimize(lambda, constraints)
 
-    solve!(problem, () -> SCS.Optimizer(verbose=0))
-    return problem.optval, x, Z
+        solve!(problem, () -> SCS.Optimizer(verbose=0))
+        return problem.optval, evaluate(x), evaluate(Z)
+    end
+end
+
+function dsw_antiblocker(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true)
+    if use_diag_optimization
+        constraints = Array{Constraint,1}()
+        lambda, x, Z = dsw_schur2!(constraints, g)
+        z = HermitianSemidefinite(g.n, g.n)
+
+        push!(constraints, lambda <= 1)
+        push!(constraints, Ψ(g, z) == x)
+        problem = maximize(real(tr(w * z')), constraints)
+
+        solve!(problem, () -> SCS.Optimizer(verbose=0))
+        return problem.optval, evaluate(x)
+    else
+        constraints = Array{Constraint,1}()
+        lambda, x, Z = dsw_schur!(constraints, g)
+
+        push!(constraints, lambda <= 1)
+        problem = maximize(real(tr(w * x')), constraints)
+
+        solve!(problem, () -> SCS.Optimizer(verbose=0))
+        return problem.optval, evaluate(x)
+    end
 end
 
 function dsw_min_X_diag(g::S0Graph, w::AbstractArray{<:Number, 2})
@@ -186,21 +358,7 @@ function dsw_min_X_diag(g::S0Graph, w::AbstractArray{<:Number, 2})
 
     solve!(problem, () -> SCS.Optimizer(verbose=0))
 
-    x = evaluate(x)
-    xproj = projection(S1, x)
-    println("proj err: ", norm(x - xproj))
-    return problem.optval, xproj
-end
-
-function dsw_antiblocker(g::S0Graph, w::AbstractArray{<:Number, 2})
-    constraints = Array{Constraint,1}()
-    lambda, x, Z = dsw_schur!(constraints, g)
-
-    push!(constraints, lambda <= 1)
-    problem = maximize(real(tr(w * x')), constraints)
-
-    solve!(problem, () -> SCS.Optimizer(verbose=0))
-    return problem.optval, evaluate(x)
+    return problem.optval, evaluate(x), evaluate(Z)
 end
 
 # max{ dsw(S0, √y * w * √y) : dsw(perp(S)+S0, y) <= 1 }
@@ -240,7 +398,7 @@ end
 # max{ <w,q> : Ψ(S, q) ⪯ y, ϑ(S, y) ≤ 1, y ∈ S1 }
 # equal to:
 # max{ dsw(S0, √y * w * √y) : dsw(perp(S)+S0, y) <= 1 }
-function daw_antiblocker_S0(g::S0Graph, w::AbstractArray{<:Number, 2})
+function dsw_antiblocker_S0(g::S0Graph, w::AbstractArray{<:Number, 2})
     n = g.n
     da_sizes = g.sig[:,1]
     dy_sizes = g.sig[:,2]
