@@ -202,29 +202,29 @@ function Ψ(g::S0Graph, w::Union{AbstractArray{<:Number, 2}, Variable})
     return out
 end
 
-function dsw_schur!(constraints::Array{Constraint,1}, g::S0Graph)
+function dsw_schur!(g::S0Graph)
     n = shape(g.S)[1]
 
     function make_var(m)
         # FIXME it'd be nice to have HermitianVariable
         Z = ComplexVariable(n, n)
-        push!(constraints, Z == Z')
+        add_constraint!(Z, Z == Z')
         return kron(m, Z)
     end
     Z = sum(make_var(m) for m in hermitian_basis(g.S))
 
-    lambda = Variable()
+    λ = Variable()
     w = partialtrace(Z, 1, [n; n])
     wv = reshape(w, n*n, 1)
 
-    push!(constraints, [ lambda  wv' ; wv  Z ] ⪰ 0)
+    add_constraint!(λ, [ λ  wv' ; wv  Z ] ⪰ 0)
 
     # FIXME maybe need transpose
-    return lambda, w, Z
+    return λ, w, Z
 end
 
 #function dsw_schur2!(constraints::Array{Constraint,1}, g::S0Graph)
-#    lambda, x, Z = dsw_schur!(constraints, g)
+#    λ, x, Z = dsw_schur!(constraints, g)
 #
 #    # FIXME should exploit symmetries to reduce degrees of freedom
 #    # (e.g. if S1=diags then Z is block diagonal)
@@ -232,15 +232,15 @@ end
 #        push!(constraints, tr(m' * x) == 0)
 #    end
 #
-#    return lambda, x, Z
+#    return λ, x, Z
 #end
 #
 #function dsw_min_X_diag(g::S0Graph, w::AbstractArray{<:Number, 2})
 #    constraints = Array{Constraint,1}()
-#    lambda, x, Z = dsw_schur2!(constraints, g)
+#    λ, x, Z = dsw_schur2!(constraints, g)
 #
 #    push!(constraints, x ⪰ w)
-#    problem = minimize(lambda, constraints)
+#    problem = minimize(λ, constraints)
 #
 #    solve!(problem, () -> SCS.Optimizer(verbose=0))
 #
@@ -250,8 +250,8 @@ end
 #    return problem.optval, xproj, evaluate(Z)
 #end
 
-# Like dsw_schur except much faster and w is constrained to S1.
-function dsw_schur2!(constraints::Array{Constraint,1}, g::S0Graph)
+# Like dsw_schur except much faster (when S0 != I), but w is constrained to S1.
+function dsw_schur2!(g::S0Graph)
     da_sizes = g.sig[:,1]
     dy_sizes = g.sig[:,2]
     n_sizes = da_sizes .* dy_sizes
@@ -279,7 +279,7 @@ function dsw_schur2!(constraints::Array{Constraint,1}, g::S0Graph)
                     perp(blkspaces[blki, blkj]),
                     full_subspace((dy_sizes[blki], dy_sizes[blkj])))
                 for m in each_basis_element(p)
-                    push!(constraints, tr(m' * blkZ) == 0)
+                    add_constraint!(Z, tr(m' * blkZ) == 0)
                 end
             end
             if blkj == blki
@@ -296,18 +296,18 @@ function dsw_schur2!(constraints::Array{Constraint,1}, g::S0Graph)
 
     #@show [ size(wi) for wi in blkw ]
 
-    lambda = Variable()
+    λ = Variable()
     wv = vcat([ reshape(wi, dy_sizes[i]^2, 1) for (i,wi) in enumerate(blkw) ]...)
     #@show size(wv)
     #@show size(Z)
 
-    push!(constraints, [ lambda  wv' ; wv  Z ] ⪰ 0)
+    add_constraint!(λ, [ λ  wv' ; wv  Z ] ⪰ 0)
 
     w = diagcat([ kron(eye(da_sizes[i]), wi) for (i,wi) in enumerate(blkw) ]...)
     #@show size(w)
 
     # FIXME maybe need transpose
-    return lambda, w, Z
+    return λ, w, Z
 end
 
 function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true)
@@ -315,10 +315,10 @@ function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=tr
         return dsw_min_X_diag(g, w)
     else
         constraints = Array{Constraint,1}()
-        lambda, x, Z = dsw_schur!(constraints, g)
+        λ, x, Z = dsw_schur!(g)
 
         push!(constraints, x ⪰ w)
-        problem = minimize(lambda, constraints)
+        problem = minimize(λ, constraints)
 
         solve!(problem, () -> SCS.Optimizer(verbose=0))
         return problem.optval, evaluate(x), evaluate(Z)
@@ -327,11 +327,15 @@ end
 
 function dsw_antiblocker(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true)
     if use_diag_optimization
+        # max{ <w,q> : Ψ(S, q) ⪯ y, ϑ(S, y) ≤ 1, y ∈ S1 }
+        # equal to:
+        # max{ dsw(S0, √y * w * √y) : dsw(complement(S), y) <= 1 }
+
         constraints = Array{Constraint,1}()
-        lambda, x, Z = dsw_schur2!(constraints, g)
+        λ, x, Z = dsw_schur2!(g)
         z = HermitianSemidefinite(g.n, g.n)
 
-        push!(constraints, lambda <= 1)
+        push!(constraints, λ <= 1)
         push!(constraints, Ψ(g, z) == x)
         problem = maximize(real(tr(w * z')), constraints)
 
@@ -339,9 +343,9 @@ function dsw_antiblocker(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_opt
         return problem.optval, evaluate(x)
     else
         constraints = Array{Constraint,1}()
-        lambda, x, Z = dsw_schur!(constraints, g)
+        λ, x, Z = dsw_schur!(g)
 
-        push!(constraints, lambda <= 1)
+        push!(constraints, λ <= 1)
         problem = maximize(real(tr(w * x')), constraints)
 
         solve!(problem, () -> SCS.Optimizer(verbose=0))
@@ -351,10 +355,10 @@ end
 
 function dsw_min_X_diag(g::S0Graph, w::AbstractArray{<:Number, 2})
     constraints = Array{Constraint,1}()
-    lambda, x, Z = dsw_schur2!(constraints, g)
+    λ, x, Z = dsw_schur2!(g)
 
     push!(constraints, x ⪰ w)
-    problem = minimize(lambda, constraints)
+    problem = minimize(λ, constraints)
 
     solve!(problem, () -> SCS.Optimizer(verbose=0))
 
@@ -370,8 +374,8 @@ end
 #    dy_sizes = g.sig[:,2]
 #
 #    constraints = Array{Constraint,1}()
-#    lambda, y, Z = dsw_schur2!(constraints, g)
-#    push!(constraints, lambda <= 1)
+#    λ, y, Z = dsw_schur2!(constraints, g)
+#    push!(constraints, λ <= 1)
 #
 #    q = HermitianSemidefinite(n)
 #
@@ -394,31 +398,3 @@ end
 #    println("proj err: ", norm(y - yproj))
 #    return problem.optval, yproj, evaluate(q)
 #end
-
-# max{ <w,q> : Ψ(S, q) ⪯ y, ϑ(S, y) ≤ 1, y ∈ S1 }
-# equal to:
-# max{ dsw(S0, √y * w * √y) : dsw(perp(S)+S0, y) <= 1 }
-function dsw_antiblocker_S0(g::S0Graph, w::AbstractArray{<:Number, 2})
-    n = g.n
-    da_sizes = g.sig[:,1]
-    dy_sizes = g.sig[:,2]
-
-    constraints = Array{Constraint,1}()
-    lambda, y, Z = dsw_schur2!(constraints, g)
-    push!(constraints, lambda <= 1)
-
-    q = HermitianSemidefinite(n)
-
-    push!(constraints, Ψ(g, q) ⪯ y)
-
-    problem = maximize(real(tr(w * q')), constraints)
-
-    solve!(problem, () -> SCS.Optimizer(verbose=0))
-
-    y = evaluate(y)
-    yproj = projection(g.S1, y)
-    println("proj err: ", norm(y - yproj))
-    return problem.optval, yproj, evaluate(q)
-end
-
-end # module
