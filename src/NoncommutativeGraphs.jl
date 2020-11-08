@@ -4,15 +4,20 @@ import Base.==
 
 using Subspaces
 using Convex, SCS, LinearAlgebra
+using Random, RandomMatrices
 
 export AlgebraShape
 export S0Graph
 export random_S0Graph, complement, vertex_graph, forget_S0
 export from_block_spaces, get_block_spaces
+export block_expander
+export random_S1_unitary
 
 export Ψ
 export dsw_schur!, dsw_schur2!
 export dsw, dsw_antiblocker
+
+eye(n) = Matrix(1.0*I, (n,n))
 
 AlgebraShape = Array{<:Integer, 2}
 
@@ -158,6 +163,30 @@ function from_block_spaces(sig::AlgebraShape, blkspaces::Array{Subspace{Complex{
     return S0Graph(sig, S)
 end
 
+function block_expander(sig::AlgebraShape)
+    function basis_mat(n, i)
+        M = zeros(n*n)
+        M[i] = 1
+        return reshape(M, (n, n))
+    end
+
+    n = sum(prod(sig, dims=2))
+
+    J = cat([
+        cat([ kron(eye(dA), basis_mat(dY, i)) for i in 1:dY^2 ]..., dims=3)
+        for (dA, dY) in eachrow(sig)
+    ]..., dims=(1,2,3))
+
+    return reshape(J, (n^2, size(J)[3]))
+end
+
+function random_S1_unitary(sig::AlgebraShape)
+    return cat([
+        kron(eye(dA), rand(Haar(2), dY))
+        for (dA, dY) in eachrow(sig)
+    ]..., dims=(1,2))
+end
+
 ###############
 ### DSW solvers
 ###############
@@ -207,13 +236,12 @@ function dsw_schur!(g::S0Graph)
     Z = sum(make_var(m) for m in hermitian_basis(g.S))
 
     λ = Variable()
-    w = partialtrace(Z, 1, [n; n])
-    wv = reshape(w, n*n, 1)
+    wt = partialtrace(Z, 1, [n; n])
+    wv = reshape(wt, n*n, 1)
 
     add_constraint!(λ, [ λ  wv' ; wv  Z ] ⪰ 0)
 
-    # FIXME maybe need transpose
-    return λ, w, Z
+    return λ, transpose(wt), Z
 end
 
 # Like dsw_schur except much faster (when S0 != I), but w is constrained to S1.
@@ -223,8 +251,6 @@ function dsw_schur2!(g::S0Graph)
     n_sizes = da_sizes .* dy_sizes
     num_blocks = size(g.sig)[1]
     d = sum(dy_sizes .^ 2)
-
-    eye(n) = Matrix(1.0*I, (n,n))
 
     blkspaces = get_block_spaces(g)
     Z = ComplexVariable(d, d)
@@ -269,14 +295,13 @@ function dsw_schur2!(g::S0Graph)
 
     add_constraint!(λ, [ λ  wv' ; wv  Z ] ⪰ 0)
 
-    w = diagcat([ kron(eye(da_sizes[i]), wi) for (i,wi) in enumerate(blkw) ]...)
-    #@show size(w)
+    wt = diagcat([ kron(eye(da_sizes[i]), wi) for (i,wi) in enumerate(blkw) ]...)
+    #@show size(wt)
 
-    # FIXME maybe need transpose
-    return λ, w, Z
+    return λ, transpose(wt), Z
 end
 
-function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true)
+function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true, eps=1e-6)
     if use_diag_optimization
         λ, x, Z = dsw_schur2!(g)
     else
@@ -284,11 +309,11 @@ function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=tr
     end
 
     problem = minimize(λ, [x ⪰ w])
-    solve!(problem, () -> SCS.Optimizer(verbose=0))
+    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
     return problem.optval, Hermitian(evaluate(x)), Hermitian(evaluate(Z))
 end
 
-function dsw_antiblocker(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true)
+function dsw_antiblocker(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true, eps=1e-6)
     if use_diag_optimization
         # max{ <w,q> : Ψ(S, q) ⪯ y, ϑ(S, y) ≤ 1, y ∈ S1 }
         # equal to:
@@ -296,12 +321,12 @@ function dsw_antiblocker(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_opt
         λ, x, Z = dsw_schur2!(g)
         z = HermitianSemidefinite(g.n, g.n)
         problem = maximize(real(tr(w * z')), [ λ <= 1, Ψ(g, z) == x ])
-        solve!(problem, () -> SCS.Optimizer(verbose=0))
-        return problem.optval, Hermitian(evaluate(x)), Hermitian(evaluate(z))
+        solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
+        return problem.optval, Hermitian(evaluate(x)), Hermitian(evaluate(z)), Hermitian(evaluate(Z))
     else
         λ, x, Z = dsw_schur!(g)
         problem = maximize(real(tr(w * x')), [ λ <= 1 ])
-        solve!(problem, () -> SCS.Optimizer(verbose=0))
+        solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
         return problem.optval, Hermitian(evaluate(x))
     end
 end
