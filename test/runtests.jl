@@ -154,3 +154,60 @@ end
     @time opt2 = dsw(SU, U*w*U')[1]
     @test opt1 ≈ opt2  atol=tol
 end
+
+@testset "Compatible matrices" begin
+    Random.seed!(0)
+
+    #sig = [1 2; 2 2]
+    #sig = [1 1; 2 3]
+    #sig = [2 3]
+    #sig = [2 2]
+    sig = [3 2; 2 3]
+
+    S = random_S0Graph(sig)
+    T = complement(S)
+
+    w = random_bounded(S.n)
+
+    @time opt0, x1, Z1 = dsw(S, w)
+    if true
+        @time opt1, x2, z, Z2 = dsw_antiblocker(T, w)
+        @test opt1 ≈ opt0  atol=1e-6
+    else
+        @time opt1, y, z, Z3 = dsw_antiblocker(T, w)
+        @test opt1 ≈ opt0  atol=1e-6
+        @time opt2, x2, Z2 = dsw(T, y)
+        @test opt2 ≈ 1  atol=1e-6
+    end
+
+    x1 /= opt0
+    Z1 /= opt0
+    Z1 = J * Z1 * J'
+    Z2 = J * Z2 * J'
+    @test Z1 ≈ Z1'
+    @test Z2 ≈ Z2'
+    Z1 = Hermitian(Z1)
+    Z2 = Hermitian(Z2)
+
+    @test tr(√D * x1 * √D * x2) ≈ 1  atol=1e-6
+    @test partialtrace(Z1, 1, [n,n]) ≈ transpose(x1)  atol=1e-6
+    @test partialtrace(Z2, 1, [n,n]) ≈ transpose(x2)  atol=1e-6
+
+    v1 = reshape(conj(x1), n^2)
+    v2 = reshape(conj(x2), n^2)
+    Q1 = [1 v1'; v1 Z1]
+    Q2 = [1 v2'; v2 Z2]
+    @test Q1 ≈ Q1'
+    @test Q2 ≈ Q2'
+    Q1 = Hermitian(Q1)
+    Q2 = Hermitian(Q2)
+    D2 = cat([ 1, -kron(√D, √D) ]..., dims=(1,2))
+
+    @test minimum(eigvals(Q1)) > -1e-6
+    @test minimum(eigvals(Q2)) > -1e-6
+    @test tr(Q1 * D2 * Q2 * D2) ≈ 0  atol=1e-6
+    @test Z1 * kron(√D, √D) * v2 ≈ v1  atol=1e-6
+    @test Z2 * kron(√D, √D) * v1 ≈ v2  atol=1e-6
+    @test Z1 * kron(√D, √D) * Z2 ≈ v1 * v2'  atol=1e-6
+    @test Z1 * kron(eye(n), D) * Z2 ≈ v1 * v2'  atol=1e-6
+end

@@ -14,7 +14,7 @@ export block_expander
 export random_S1_unitary
 
 export Ψ
-export dsw_schur!, dsw_schur2!
+export dsw_schur, dsw_schur2
 export dsw, dsw_antiblocker
 
 eye(n) = Matrix(1.0*I, (n,n))
@@ -225,7 +225,7 @@ function Ψ(g::S0Graph, w::Union{AbstractArray{<:Number, 2}, Variable})
     return out
 end
 
-function dsw_schur!(g::S0Graph)
+function dsw_schur(g::S0Graph)
     n = shape(g.S)[1]
 
     function make_var(m)
@@ -245,7 +245,7 @@ function dsw_schur!(g::S0Graph)
 end
 
 # Like dsw_schur except much faster (when S0 != I), but w is constrained to S1.
-function dsw_schur2!(g::S0Graph)
+function dsw_schur2(g::S0Graph)
     da_sizes = g.sig[:,1]
     dy_sizes = g.sig[:,2]
     n_sizes = da_sizes .* dy_sizes
@@ -303,9 +303,9 @@ end
 
 function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true, eps=1e-6)
     if use_diag_optimization
-        λ, x, Z = dsw_schur2!(g)
+        λ, x, Z = dsw_schur2(g)
     else
-        λ, x, Z = dsw_schur!(g)
+        λ, x, Z = dsw_schur(g)
     end
 
     problem = minimize(λ, [x ⪰ w])
@@ -318,13 +318,13 @@ function dsw_antiblocker(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_opt
         # max{ <w,q> : Ψ(S, q) ⪯ y, ϑ(S, y) ≤ 1, y ∈ S1 }
         # equal to:
         # max{ dsw(S0, √y * w * √y) : dsw(complement(S), y) <= 1 }
-        λ, x, Z = dsw_schur2!(g)
+        λ, x, Z = dsw_schur2(g)
         z = HermitianSemidefinite(g.n, g.n)
         problem = maximize(real(tr(w * z')), [ λ <= 1, Ψ(g, z) == x ])
         solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
         return problem.optval, Hermitian(evaluate(x)), Hermitian(evaluate(z)), Hermitian(evaluate(Z))
     else
-        λ, x, Z = dsw_schur!(g)
+        λ, x, Z = dsw_schur(g)
         problem = maximize(real(tr(w * x')), [ λ <= 1 ])
         solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
         return problem.optval, Hermitian(evaluate(x))
