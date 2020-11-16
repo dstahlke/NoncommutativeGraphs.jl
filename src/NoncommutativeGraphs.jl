@@ -5,6 +5,8 @@ import Base.==
 using Subspaces
 using Convex, SCS, LinearAlgebra
 using Random, RandomMatrices
+using LightGraphs
+import Base.show
 
 export AlgebraShape
 export S0Graph
@@ -65,6 +67,14 @@ struct S0Graph
         (S == S0 * S * S0) || throw(DomainError("S is not an S0-graph"))
         return new(n, sig, S, S0, S1)
     end
+
+    function S0Graph(g::AbstractGraph)
+        n = nv(g)
+        S0 = Subspace([ (x=zeros(Complex{Float64}, n,n); x[i,i]=1; x) for i in 1:n ])
+        S  = Subspace([ (x=zeros(Complex{Float64}, n,n); x[src(e),dst(e)]=1; x) for e in edges(g) ])
+        S = S + S' + S0
+        return S0Graph(ones(Int64, n, 2), S)
+    end
 end
 
 function show(io::IO, g::S0Graph)
@@ -91,12 +101,12 @@ function random_S0Graph(sig::AlgebraShape)
         else
             R = empty_subspace((dy_row, dy_col))
         end
-        kron(F, R)
+        return kron(F, R)
     end
-    blocks = [
+    blocks = Array{Subspace{Complex{Float64}, 2}, 2}([
         block(col, row)
         for col in 1:num_blocks, row in 1:num_blocks
-    ]
+   ])
 
     S = hvcat(num_blocks, blocks...)
     S |= S'
