@@ -148,6 +148,18 @@ end
 end
 
 @testset "Unitary transform" begin
+    Random.seed!(0)
+
+    #sig = [1 2; 2 2]
+    #sig = [1 1; 2 3]
+    sig = [2 3]
+    #sig = [2 2]
+    #sig = [3 2; 2 3]
+
+    S = random_S0Graph(sig)
+
+    w = random_bounded(S.n)
+
     U = random_S1_unitary(sig);
     SU = S0Graph(S.sig, U * S.S * U')
     @time opt1 = dsw(S, w)[1]
@@ -166,6 +178,13 @@ end
 
     S = random_S0Graph(sig)
     T = complement(S)
+
+    n = S.n
+    da_sizes = S.sig[:,1]
+    dy_sizes = S.sig[:,2]
+    n_sizes = da_sizes .* dy_sizes
+    D = cat([ v*eye(n) for (n, v) in zip(n_sizes, dy_sizes ./ da_sizes) ]..., dims=(1,2))
+    J = block_expander(S.sig)
 
     w = random_bounded(S.n)
 
