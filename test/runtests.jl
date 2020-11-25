@@ -94,7 +94,7 @@ end
     w = random_bounded(S.n)
 
     @time opt0 = dsw(S, w, eps=eps)[1]
-    @time opt1, y, z = dsw_antiblocker(T, w, eps=eps)
+    @time opt1, x, y = dsw_antiblocker(T, w, eps=eps)
     @test opt1 ≈ opt0  atol=tol
     @time opt2 = dsw(T, y, eps=eps)[1]
     @test opt2 ≈ 1  atol=tol
@@ -190,10 +190,10 @@ end
 
     @time opt0, x1, Z1 = dsw(S, w)
     if true
-        @time opt1, x2, z, Z2 = dsw_antiblocker(T, w)
+        @time opt1, _, x2, Z2 = dsw_antiblocker(T, w)
         @test opt1 ≈ opt0  atol=1e-6
     else
-        @time opt1, y, z, Z3 = dsw_antiblocker(T, w)
+        @time opt1, _, y = dsw_antiblocker(T, w)
         @test opt1 ≈ opt0  atol=1e-6
         @time opt2, x2, Z2 = dsw(T, y)
         @test opt2 ≈ 1  atol=1e-6
