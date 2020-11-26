@@ -130,7 +130,7 @@ function empty_S0Graph(sig::AlgebraShape)
 end
 
 function classical_S0Graph(g::AbstractGraph)
-    sig = [1 nv(g)]
+    sig = ones(Int64, nv(g), 2)
     basis = Array{Array{ComplexF64}, 1}()
     for e in edges(g)
         m = zeros(nv(g), nv(g))
@@ -337,7 +337,7 @@ function dsw_schur2(g::S0Graph)
     return (λ=λ, w=transpose(wt), Z=Z)
 end
 
-function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true, eps=1e-6)
+function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true, eps=1e-6, verbose=0)
     if use_diag_optimization
         λ, x, Z = dsw_schur2(g)
     else
@@ -345,11 +345,11 @@ function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=tr
     end
 
     problem = minimize(λ, [x ⪰ w])
-    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
+    solve!(problem, () -> SCS.Optimizer(verbose=verbose, eps=eps))
     return (λ=problem.optval, x=Hermitian(evaluate(x)), Z=Hermitian(evaluate(Z)))
 end
 
-function dsw_antiblocker(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true, eps=1e-6)
+function dsw_antiblocker(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true, eps=1e-6, verbose=0)
     # max{ <w,x> : Ψ(S, x) ⪯ y, ϑ(S, y) ≤ 1, y ∈ S1 }
     # equal to:
     # max{ dsw(S0, √y * w * √y) : dsw(complement(S), y) <= 1 }
@@ -360,7 +360,7 @@ function dsw_antiblocker(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_opt
     end
     x = HermitianSemidefinite(g.n, g.n)
     problem = maximize(real(tr(w * x')), [ λ <= 1, Ψ(g, x) == y ])
-    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
+    solve!(problem, () -> SCS.Optimizer(verbose=verbose, eps=eps))
     return (λ=problem.optval, x=Hermitian(evaluate(x)), y=Hermitian(evaluate(y)), Z=Hermitian(evaluate(Z)))
 end
 
