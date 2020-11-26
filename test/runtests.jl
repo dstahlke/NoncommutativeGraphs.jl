@@ -74,8 +74,8 @@ end
 
     w = random_bounded(S.n)
 
-    @time opt1 = dsw(S, w)[1]
-    @time opt2 = dsw_antiblocker(complement(S), w)[1]
+    @time opt1 = dsw(S, w, eps=eps)[1]
+    @time opt2 = dsw_antiblocker(complement(S), w, eps=eps)[1]
     @test opt1 ≈ opt2  atol=tol
 end
 
@@ -143,7 +143,7 @@ end
     w = random_bounded(S.n)
 
     @time opt1, x1, Z1 = dsw(S, w, eps=eps)
-    @time opt2, x2, Z2 = dsw(S, w, use_diag_optimization=false)
+    @time opt2, x2, Z2 = dsw(S, w, use_diag_optimization=false, eps=eps)
     @test opt1 ≈ opt2  atol=tol
 end
 
@@ -162,8 +162,8 @@ end
 
     U = random_S1_unitary(sig);
     SU = S0Graph(S.sig, U * S.S * U')
-    @time opt1 = dsw(S, w)[1]
-    @time opt2 = dsw(SU, U*w*U')[1]
+    @time opt1 = dsw(S, w, eps=eps)[1]
+    @time opt2 = dsw(SU, U*w*U', eps=eps)[1]
     @test opt1 ≈ opt2  atol=tol
 end
 
@@ -188,14 +188,14 @@ end
 
     w = random_bounded(S.n)
 
-    @time opt0, x1, Z1 = dsw(S, w)
+    @time opt0, x1, Z1 = dsw(S, w, eps=eps)
     if true
-        @time opt1, _, x2, Z2 = dsw_antiblocker(T, w)
+        @time opt1, _, x2, Z2 = dsw_antiblocker(T, w, eps=eps)
         @test opt1 ≈ opt0  atol=1e-6
     else
-        @time opt1, _, y = dsw_antiblocker(T, w)
+        @time opt1, _, y = dsw_antiblocker(T, w, eps=eps)
         @test opt1 ≈ opt0  atol=1e-6
-        @time opt2, x2, Z2 = dsw(T, y)
+        @time opt2, x2, Z2 = dsw(T, y, eps=eps)
         @test opt2 ≈ 1  atol=1e-6
     end
 

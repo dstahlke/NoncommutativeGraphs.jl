@@ -330,21 +330,18 @@ function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=tr
 end
 
 function dsw_antiblocker(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true, eps=1e-6)
+    # max{ <w,x> : Ψ(S, x) ⪯ y, ϑ(S, y) ≤ 1, y ∈ S1 }
+    # equal to:
+    # max{ dsw(S0, √y * w * √y) : dsw(complement(S), y) <= 1 }
     if use_diag_optimization
-        # max{ <w,x> : Ψ(S, x) ⪯ y, ϑ(S, y) ≤ 1, y ∈ S1 }
-        # equal to:
-        # max{ dsw(S0, √y * w * √y) : dsw(complement(S), y) <= 1 }
         λ, y, Z = dsw_schur2(g)
-        x = HermitianSemidefinite(g.n, g.n)
-        problem = maximize(real(tr(w * x')), [ λ <= 1, Ψ(g, x) == y ])
-        solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
-        return (λ=problem.optval, x=Hermitian(evaluate(x)), y=Hermitian(evaluate(y)), Z=Hermitian(evaluate(Z)))
     else
-        λ, x, Z = dsw_schur(g)
-        problem = maximize(real(tr(w * x')), [ λ <= 1 ])
-        solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
-        return (λ=problem.optval, x=Hermitian(evaluate(x)), Z=Hermitian(evaluate(Z)))
+        λ, y, Z = dsw_schur(g)
     end
+    x = HermitianSemidefinite(g.n, g.n)
+    problem = maximize(real(tr(w * x')), [ λ <= 1, Ψ(g, x) == y ])
+    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
+    return (λ=problem.optval, x=Hermitian(evaluate(x)), y=Hermitian(evaluate(y)), Z=Hermitian(evaluate(Z)))
 end
 
 end
