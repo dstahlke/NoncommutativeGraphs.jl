@@ -245,8 +245,7 @@ function dsw_schur(g::S0Graph)
     n = shape(g.S)[1]
 
     function make_var(m)
-        Z = ComplexVariable(n, n)
-        add_constraint!(Z, Z == Z') # FIXME it'd be nice to have HermitianVariable
+        Z = ComplexVariable(n, n) # FIXME it'd be nice to have HermitianVariable
         return kron(m, Z)
     end
     Z = sum(make_var(m) for m in hermitian_basis(g.S))
@@ -264,54 +263,50 @@ end
 function dsw_schur2(g::S0Graph)
     da_sizes = g.sig[:,1]
     dy_sizes = g.sig[:,2]
-    n_sizes = da_sizes .* dy_sizes
     num_blocks = size(g.sig)[1]
-    d = sum(dy_sizes .^ 2)
 
     blkspaces = get_block_spaces(g)
-    Z = ComplexVariable(d, d)
 
-    blkw = []
-    offseti = 0
+    w_blocks = Array{Convex.AbstractExpr, 1}(undef, num_blocks)
+    Z_blocks = Array{Convex.AbstractExpr, 2}(undef, num_blocks, num_blocks)
     for blki in 1:num_blocks
-        offsetj = 0
-        ni = dy_sizes[blki]^2
         for blkj in 1:num_blocks
-            nj = dy_sizes[blkj]^2
-            #@show [ni, nj]
-            #@show [1+offseti:ni+offseti, 1+offsetj:nj+offsetj]
-            blkZ = Z[1+offseti:ni+offseti, 1+offsetj:nj+offsetj]
-            #@show size(blkZ)
             if blkj <= blki
-                p = kron(
-                    perp(blkspaces[blki, blkj]),
-                    full_subspace((dy_sizes[blki], dy_sizes[blkj])))
-                for m in each_basis_element(p)
-                    add_constraint!(Z, tr(m' * blkZ) == 0)
+                if dim(blkspaces[blki, blkj]) == 0
+                    Z_blocks[blki, blkj] = zeros(dy_sizes[blki]^2, dy_sizes[blkj]^2)
+                else
+                    blkV = sum(kron(m, ComplexVariable(dy_sizes[blki], dy_sizes[blkj]))
+                        for m in each_basis_element(blkspaces[blki, blkj]))
+                    Z_blocks[blki, blkj] = blkV
                 end
             end
             if blkj == blki
-                wi = partialtrace(blkZ, 1, [dy_sizes[blki], dy_sizes[blkj]])
-                push!(blkw, wi)
+                w_blocks[blki] = partialtrace(Z_blocks[blki, blkj], 1, [dy_sizes[blki], dy_sizes[blkj]])
             end
-            offsetj += nj
         end
-        #@show [offsetj, d]
-        @assert offsetj == d
-        offseti += ni
     end
-    @assert offseti == d
 
-    #@show [ size(wi) for wi in blkw ]
+    for blki in 1:num_blocks
+        for blkj in 1:num_blocks
+            if blkj > blki
+                Z_blocks[blki, blkj] = Z_blocks[blkj, blki]'
+            end
+            #@show blki, blkj
+            #@show size(Z_blocks[blki, blkj])
+        end
+    end
+
+    #@show [ size(wi) for wi in w_blocks ]
 
     λ = Variable()
-    wv = vcat([ reshape(wi, dy_sizes[i]^2, 1) for (i,wi) in enumerate(blkw) ]...)
+    Z = vcat([ hcat([Z_blocks[i,j] for j in 1:num_blocks]...) for i in 1:num_blocks ]...)
+    wv = vcat([ reshape(wi, dy_sizes[i]^2, 1) for (i,wi) in enumerate(w_blocks) ]...)
     #@show size(wv)
     #@show size(Z)
 
     add_constraint!(λ, [ λ  wv' ; wv  Z ] ⪰ 0)
 
-    wt = diagcat([ kron(eye(da_sizes[i]), wi) for (i,wi) in enumerate(blkw) ]...)
+    wt = diagcat([ kron(eye(da_sizes[i]), wi) for (i,wi) in enumerate(w_blocks) ]...)
     #@show size(wt)
 
     return (λ=λ, w=transpose(wt), Z=Z)
