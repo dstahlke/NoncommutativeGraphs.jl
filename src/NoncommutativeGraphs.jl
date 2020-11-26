@@ -12,6 +12,7 @@ export AlgebraShape
 export S0Graph
 export create_S0_S1
 export random_S0Graph, empty_S0Graph, complement, vertex_graph, forget_S0
+export classical_S0Graph
 export from_block_spaces, get_block_spaces
 export block_expander
 export random_S1_unitary
@@ -126,6 +127,23 @@ end
 function empty_S0Graph(sig::AlgebraShape)
     S0, S1 = create_S0_S1(sig)
     return S0Graph(sig, S0)
+end
+
+function classical_S0Graph(g::AbstractGraph)
+    sig = [1 nv(g)]
+    basis = Array{Array{ComplexF64}, 1}()
+    for e in edges(g)
+        m = zeros(nv(g), nv(g))
+        m[src(e), dst(e)] = 1
+        push!(basis, m)
+        push!(basis, m')
+    end
+    for i in 1:nv(g)
+        m = zeros(nv(g), nv(g))
+        m[i, i] = 1
+        push!(basis, m)
+    end
+    return S0Graph(sig, Subspace(basis))
 end
 
 complement(g::S0Graph) = S0Graph(g.sig, perp(g.S) | g.S0)

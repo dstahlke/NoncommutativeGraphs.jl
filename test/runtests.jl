@@ -1,6 +1,7 @@
 using NoncommutativeGraphs, Subspaces
 using Convex, SCS, LinearAlgebra
 using Random, RandomMatrices
+using LightGraphs
 using Test
 
 function random_bounded(n)
@@ -49,6 +50,14 @@ end
 #    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
 #    return problem.optval
 #end
+
+@testset "Classical graph" begin
+    n = 7
+    G = cycle_graph(n)
+    S = classical_S0Graph(G)
+    @time λ = dsw(S, eye(n), eps=eps)[1]
+    @test λ ≈ n*cos(pi/n) / (1 + cos(pi/n))  atol=tol
+end
 
 @testset "Simple duality" begin
     Random.seed!(0)
