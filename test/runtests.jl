@@ -24,14 +24,9 @@ function f(g, w, v)
 end
 
 function g(g, w)
-    n = size(w, 1)
+    D = g.D
 
-    da_sizes = g.sig[:,1]
-    dy_sizes = g.sig[:,2]
-    n_sizes = da_sizes .* dy_sizes
-    D = cat([ v*eye(n) for (n, v) in zip(n_sizes, dy_sizes ./ da_sizes) ]..., dims=(1,2))
-
-    #z = HermitianSemidefinite(n)
+    #z = HermitianSemidefinite(g.n)
     #problem = minimize(real(tr(D * z)), [ z ⪰ w, z in g.S1 ])
     #problem = minimize(real(tr(z)), [ z ⪰ √D * w * √D, z in g.S1 ])
 
@@ -43,22 +38,17 @@ function g(g, w)
     return problem.optval
 end
 
-function h(g, w, y)
-    n = size(w, 1)
-
-    da_sizes = g.sig[:,1]
-    dy_sizes = g.sig[:,2]
-    n_sizes = da_sizes .* dy_sizes
-    D = cat([ v*eye(n) for (n, v) in zip(n_sizes, dy_sizes ./ da_sizes) ]..., dims=(1,2))
-
-    z = variable_in_space(g.S1)
-    problem = minimize(real(tr(y * √D * z * √D)), [ z ⪰ w ])
-    #problem = minimize(real(tr(D * √y * z * √y)), [ z ⪰ w ])
-    #problem = minimize(real(tr(z)), [ z ⪰ √D * √y * w * √y * √D ])
-
-    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
-    return problem.optval
-end
+#function h(g, w, y)
+#    D = g.D
+#
+#    z = variable_in_space(g.S1)
+#    problem = minimize(real(tr(y * √D * z * √D)), [ z ⪰ w ])
+#    #problem = minimize(real(tr(D * √y * z * √y)), [ z ⪰ w ])
+#    #problem = minimize(real(tr(z)), [ z ⪰ √D * √y * w * √y * √D ])
+#
+#    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
+#    return problem.optval
+#end
 
 @testset "Simple duality" begin
     Random.seed!(0)
@@ -107,27 +97,24 @@ end
     @test g(S, √y * w * √y) ≈ opt3  atol=tol
 end
 
-# FIXME uses huge amount of memory for some reason (>40GB)
-#@testset "Thin diag" begin
-#    Random.seed!(0)
-#
-#    #sig = [1 2; 2 2]
-#    #sig = [1 1; 2 3]
-#    sig = [2 3]
-#    #sig = [2 2]
-#    #sig = [3 2; 2 3]
-#
-#    S = random_S0Graph(sig)
-#    Sthin = complement(forget_S0(complement(S)))
-#    @show S
-#    @show Sthin
-#
-#    w = random_bounded(S.n)
-#
-#    @time opt1 = dsw(Sthin, w, eps=eps)[1]
-#    @time opt2 = dsw(S, Ψ(S, w), eps=eps)[1]
-#    @test opt1 ≈ opt2  atol=tol
-#end
+@testset "Thin diag" begin
+    Random.seed!(0)
+
+    #sig = [1 2; 2 2]
+    #sig = [1 1; 2 3]
+    sig = [2 3]
+    #sig = [2 2]
+    #sig = [3 2; 2 3]
+
+    S = random_S0Graph(sig)
+    Sthin = complement(forget_S0(complement(S)))
+
+    w = random_bounded(S.n)
+
+    @time opt1 = dsw(Sthin, w, eps=eps)[1]
+    @time opt2 = dsw(S, Ψ(S, w), eps=eps)[1]
+    @test opt1 ≈ opt2*S.n  atol=tol
+end
 
 @testset "Diag optimization" begin
     Random.seed!(0)
@@ -180,10 +167,7 @@ end
     T = complement(S)
 
     n = S.n
-    da_sizes = S.sig[:,1]
-    dy_sizes = S.sig[:,2]
-    n_sizes = da_sizes .* dy_sizes
-    D = cat([ v*eye(n) for (n, v) in zip(n_sizes, dy_sizes ./ da_sizes) ]..., dims=(1,2))
+    D = S.D
     J = block_expander(S.sig)
 
     w = random_bounded(S.n)

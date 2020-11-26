@@ -59,14 +59,21 @@ struct S0Graph
     S::Subspace{Complex{Float64}, 2}
     S0::Subspace{Complex{Float64}, 2}
     S1::Subspace{Complex{Float64}, 2} # commutant of S0
+    D::Array{Float64, 2}
 
     function S0Graph(sig::AlgebraShape, S::Subspace{Complex{Float64}, 2})
         S0, S1 = create_S0_S1(sig)
-        n = shape(S0)[1]
         S == S' || throw(DomainError("S is not an S0-graph"))
         S0 in S || throw(DomainError("S is not an S0-graph"))
         (S == S0 * S * S0) || throw(DomainError("S is not an S0-graph"))
-        return new(n, sig, S, S0, S1)
+
+        n = shape(S0)[1]
+        da_sizes = sig[:,1]
+        dy_sizes = sig[:,2]
+        n_sizes = da_sizes .* dy_sizes
+        D = cat([ v*eye(n) for (n, v) in zip(n_sizes, dy_sizes ./ da_sizes) ]..., dims=(1,2))
+
+        return new(n, sig, S, S0, S1, D)
     end
 
     function S0Graph(g::AbstractGraph)
@@ -93,7 +100,7 @@ function random_S0Graph(sig::AlgebraShape)
     function block(col, row)
         da_col, dy_col = sig[col,:]
         da_row, dy_row = sig[row,:]
-        ds = Integer(round(sqrt(dy_row * dy_col) / 2.0))
+        ds = Integer(round(dy_row * dy_col / 2.0))
         F = full_subspace((da_row, da_col))
         if row == col
             R = random_hermitian_subspace(ds, dy_row)
