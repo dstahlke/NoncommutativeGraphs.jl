@@ -4,6 +4,8 @@ using Random, RandomMatrices
 using LightGraphs
 using Test
 
+complement = NoncommutativeGraphs.complement
+
 function random_bounded(n)
     U = rand(Haar(2), n)
     return Hermitian(U' * Diagonal(rand(n)) * U)
