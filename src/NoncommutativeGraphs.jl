@@ -56,12 +56,12 @@ end
 struct S0Graph
     n::Integer
     sig::AlgebraShape
-    S::Subspace{Complex{Float64}, 2}
-    S0::Subspace{Complex{Float64}, 2}
-    S1::Subspace{Complex{Float64}, 2} # commutant of S0
+    S::Subspace{ComplexF64, 2}
+    S0::Subspace{ComplexF64, 2}
+    S1::Subspace{ComplexF64, 2} # commutant of S0
     D::Array{Float64, 2}
 
-    function S0Graph(sig::AlgebraShape, S::Subspace{Complex{Float64}, 2})
+    function S0Graph(sig::AlgebraShape, S::Subspace{ComplexF64, 2})
         S0, S1 = create_S0_S1(sig)
         S == S' || throw(DomainError("S is not an S0-graph"))
         S0 in S || throw(DomainError("S is not an S0-graph"))
@@ -78,8 +78,8 @@ struct S0Graph
 
     function S0Graph(g::AbstractGraph)
         n = nv(g)
-        S0 = Subspace([ (x=zeros(Complex{Float64}, n,n); x[i,i]=1; x) for i in 1:n ])
-        S  = Subspace([ (x=zeros(Complex{Float64}, n,n); x[src(e),dst(e)]=1; x) for e in edges(g) ])
+        S0 = Subspace([ (x=zeros(ComplexF64, n,n); x[i,i]=1; x) for i in 1:n ])
+        S  = Subspace([ (x=zeros(ComplexF64, n,n); x[src(e),dst(e)]=1; x) for e in edges(g) ])
         S = S + S' + S0
         return S0Graph(ones(Int64, n, 2), S)
     end
@@ -111,7 +111,7 @@ function random_S0Graph(sig::AlgebraShape)
         end
         return kron(F, R)
     end
-    blocks = Array{Subspace{Complex{Float64}, 2}, 2}([
+    blocks = Array{Subspace{ComplexF64, 2}, 2}([
         block(col, row)
         for col in 1:num_blocks, row in 1:num_blocks
    ])
@@ -140,13 +140,13 @@ function get_block_spaces(g::S0Graph)
     dy_sizes = g.sig[:,2]
     n_sizes = da_sizes .* dy_sizes
 
-    blkspaces = Array{Subspace{Complex{Float64}}, 2}(undef, num_blocks, num_blocks)
+    blkspaces = Array{Subspace{ComplexF64}, 2}(undef, num_blocks, num_blocks)
     offseti = 0
     for blki in 1:num_blocks
         offsetj = 0
         for blkj in 1:num_blocks
             #@show [blki, blkj, offseti, offsetj]
-            blkbasis = Array{Array{Complex{Float64}, 2}, 1}()
+            blkbasis = Array{Array{ComplexF64, 2}, 1}()
             for m in each_basis_element(g.S)
                 blk = m[1+offseti:dy_sizes[blki]+offseti, 1+offsetj:dy_sizes[blkj]+offsetj]
                 push!(blkbasis, blk)
@@ -163,7 +163,7 @@ function get_block_spaces(g::S0Graph)
     return blkspaces
 end
 
-function from_block_spaces(sig::AlgebraShape, blkspaces::Array{Subspace{Complex{Float64}}, 2})
+function from_block_spaces(sig::AlgebraShape, blkspaces::Array{Subspace{ComplexF64}, 2})
     S0, S1 = NoncommutativeGraphs.create_S0_S1(sig)
 
     num_blocks = size(sig, 1)
