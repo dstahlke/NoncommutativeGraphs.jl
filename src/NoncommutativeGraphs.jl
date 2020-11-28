@@ -269,11 +269,13 @@ end
 function dsw_schur(g::S0Graph)
     n = shape(g.S)[1]
 
-    function make_var(m)
-        Z = ComplexVariable(n, n) # FIXME it'd be nice to have HermitianVariable
-        return kron(m, Z)
-    end
-    Z = sum(make_var(m) for m in hermitian_basis(g.S))
+    Z = sum(kron(m, ComplexVariable(n, n)) for m in hermitian_basis(g.S))
+    # slow:
+    #Z = ComplexVariable(n^2, n^2)
+    #add_constraint!(Z, Z in kron(g.S, full_subspace((n, n))))
+    # slow:
+    #SB = kron(g.S, full_subspace((n, n)))
+    #Z = variable_in_space(SB)
 
     λ = Variable()
     wt = partialtrace(Z, 1, [n; n])
@@ -303,6 +305,9 @@ function dsw_schur2(g::S0Graph)
                     blkV = sum(kron(m, ComplexVariable(dy_sizes[blki], dy_sizes[blkj]))
                         for m in each_basis_element(blkspaces[blki, blkj]))
                     Z_blocks[blki, blkj] = blkV
+                    # slow:
+                    #SB = kron(blkspaces[blki, blkj], full_subspace((dy_sizes[blki], dy_sizes[blkj])))
+                    #Z_blocks[blki, blkj] = variable_in_space(SB)
                 end
             end
             if blkj == blki

@@ -228,3 +228,17 @@ end
     @test Z1 * kron(√D, √D) * Z2 ≈ v1 * v2'  atol=1e-6
     @test Z1 * kron(eye(n), D) * Z2 ≈ v1 * v2'  atol=1e-6
 end
+
+@testset "Empty classical graph" begin
+    n = 4
+    diags = Subspace([ Array{ComplexF64, 2}(basis_vec((n,n), (i,i))) for i in 1:n ])
+    S = S0Graph([1 n], diags)
+
+    w = random_bounded(n)
+    λ = dsw(S, w).λ
+
+    X = HermitianSemidefinite(n)
+    problem = maximize(real(tr(X * w)), [ X[i,i] == 1 for i in 1:n ])
+    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=1e-6))
+    @test λ ≈ problem.optval  atol=1e-6
+end
