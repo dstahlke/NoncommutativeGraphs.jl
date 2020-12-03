@@ -35,8 +35,8 @@ function create_S0_S1(sig::AlgebraShape)
         dA = row[1]
         dY = row[2]
         #println("dA=$dA dY=$dY")
-        blk0 = kron(full_subspace((dA, dA)), Matrix((1.0+0.0im)*I, dY, dY))
-        blk1 = kron(Matrix((1.0+0.0im)*I, dA, dA), full_subspace((dY, dY)))
+        blk0 = kron(full_subspace(ComplexF64, (dA, dA)), Matrix((1.0+0.0im)*I, dY, dY))
+        blk1 = kron(Matrix((1.0+0.0im)*I, dA, dA), full_subspace(ComplexF64, (dY, dY)))
         #println(blk0)
         push!(blocks0, blk0)
         push!(blocks1, blk1)
@@ -102,13 +102,13 @@ function random_S0Graph(sig::AlgebraShape)
         da_col, dy_col = sig[col,:]
         da_row, dy_row = sig[row,:]
         ds = Integer(round(dy_row * dy_col / 2.0))
-        F = full_subspace((da_row, da_col))
+        F = full_subspace(ComplexF64, (da_row, da_col))
         if row == col
-            R = random_hermitian_subspace(ds, dy_row)
+            R = random_hermitian_subspace(ComplexF64, ds, dy_row)
         elseif row > col
-            R = random_subspace(ds, (dy_row, dy_col))
+            R = random_subspace(ComplexF64, ds, (dy_row, dy_col))
         else
-            R = empty_subspace((dy_row, dy_col))
+            R = empty_subspace(ComplexF64, (dy_row, dy_col))
         end
         return kron(F, R)
     end
@@ -189,7 +189,7 @@ function from_block_spaces(sig::AlgebraShape, blkspaces::Array{Subspace{ComplexF
         da_col, dy_col = sig[col,:]
         da_row, dy_row = sig[row,:]
         ds = Integer(round(sqrt(dy_row * dy_col) / 2.0))
-        F = full_subspace((da_row, da_col))
+        F = full_subspace(ComplexF64, (da_row, da_col))
         kron(F, blkspaces[row, col])
     end
     blocks = [
@@ -272,9 +272,9 @@ function dsw_schur(g::S0Graph)
     Z = sum(kron(m, ComplexVariable(n, n)) for m in hermitian_basis(g.S))
     # slow:
     #Z = ComplexVariable(n^2, n^2)
-    #add_constraint!(Z, Z in kron(g.S, full_subspace((n, n))))
+    #add_constraint!(Z, Z in kron(g.S, full_subspace(ComplexF64, (n, n))))
     # slow:
-    #SB = kron(g.S, full_subspace((n, n)))
+    #SB = kron(g.S, full_subspace(ComplexF64, (n, n)))
     #Z = variable_in_space(SB)
 
     λ = Variable()
@@ -306,7 +306,7 @@ function dsw_schur2(g::S0Graph)
                         for m in each_basis_element(blkspaces[blki, blkj]))
                     Z_blocks[blki, blkj] = blkV
                     # slow:
-                    #SB = kron(blkspaces[blki, blkj], full_subspace((dy_sizes[blki], dy_sizes[blkj])))
+                    #SB = kron(blkspaces[blki, blkj], full_subspace(ComplexF64, (dy_sizes[blki], dy_sizes[blkj])))
                     #Z_blocks[blki, blkj] = variable_in_space(SB)
                 end
             end

@@ -70,8 +70,8 @@ version = "0.3.4+0"
 
 [[Convex]]
 deps = ["AbstractTrees", "BenchmarkTools", "LinearAlgebra", "MathOptInterface", "OrderedCollections", "SparseArrays", "Test"]
-git-tree-sha1 = "6e699fe193a3b811d8293331cc417c10c765451e"
-repo-rev = "hcatfix"
+git-tree-sha1 = "9853fcd3d430fd5ebf563f90ec18e847305f527e"
+repo-rev = "a80853bc69135af70fee38e5d1664f63bbb2d03e"
 repo-url = "/home/dstahlke/git/julia_modules/Convex.jl"
 uuid = "f65535da-76fb-5f13-bab9-19810c17039a"
 version = "0.13.7"
@@ -387,10 +387,10 @@ uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
 version = "0.9.5"
 
 [[Subspaces]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "d8ff00a6850877f233331f45ed9cddaf9c78a8c1"
+deps = ["Convex", "LinearAlgebra"]
+git-tree-sha1 = "fd89933496296450b237e643b3e83bfbcb627398"
 repo-rev = "master"
-repo-url = "/home/dstahlke/git/julia_modules/Subspaces"
+repo-url = "/home/dstahlke/git/julia_modules/Subspaces.jl"
 uuid = "922a6ab9-c04b-46bc-b8bf-400344129a3c"
 version = "0.1.0"
 
