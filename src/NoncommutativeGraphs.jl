@@ -68,7 +68,7 @@ struct S0Graph
         S0 in S || throw(DomainError("S is not an S0-graph"))
         (S == S0 * S * S0) || throw(DomainError("S is not an S0-graph"))
 
-        n = shape(S0)[1]
+        n = size(S0)[1]
         da_sizes = sig[:,1]
         dy_sizes = sig[:,2]
         n_sizes = da_sizes .* dy_sizes
@@ -173,10 +173,10 @@ function get_block_spaces(g::S0Graph)
             #println(blkspaces[blki, blkj])
             offsetj += n_sizes[blkj]
         end
-        @assert offsetj == shape(g.S)[2]
+        @assert offsetj == size(g.S)[2]
         offseti += n_sizes[blki]
     end
-    @assert offseti == shape(g.S)[1]
+    @assert offseti == size(g.S)[1]
 
     return blkspaces
 end
@@ -267,7 +267,7 @@ function Ψ(g::S0Graph, w::Union{AbstractArray{<:Number, 2}, Variable})
 end
 
 function dsw_schur(g::S0Graph)
-    n = shape(g.S)[1]
+    n = size(g.S)[1]
 
     Z = sum(kron(m, ComplexVariable(n, n)) for m in hermitian_basis(g.S))
     # slow:
