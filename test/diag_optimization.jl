@@ -10,6 +10,6 @@ S = random_S0Graph(sig)
 
 w = random_bounded(S.n)
 
-@time opt1, x1 = dsw(S, w, eps=eps)
-@time opt2, x2 = dsw(S, w, use_diag_optimization=false, eps=eps)
+@time opt1, x1 = dsw(S, w, eps=solver_eps)
+@time opt2, x2 = dsw(S, w, use_diag_optimization=false, eps=solver_eps)
 @test opt1 ≈ opt2  atol=tol

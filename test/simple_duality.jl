@@ -11,6 +11,6 @@ T = complement(S)
 
 w = random_bounded(S.n)
 
-@time opt1 = dsw(S, w, eps=eps)[1]
-@time opt2 = dsw_via_complement(complement(S), w, eps=eps)[1]
+@time opt1 = dsw(S, w, eps=solver_eps)[1]
+@time opt2 = dsw_via_complement(complement(S), w, eps=solver_eps)[1]
 @test opt1 ≈ opt2  atol=tol

@@ -15,14 +15,14 @@ J = block_expander(S.sig)
 
 w = random_bounded(S.n)
 
-@time opt0, x1, Z1 = dsw(S, w, eps=eps)
+@time opt0, x1, Z1 = dsw(S, w, eps=solver_eps)
 if true
-    @time opt1, _, x2, Z2 = dsw_via_complement(T, w, eps=eps)
+    @time opt1, _, x2, Z2 = dsw_via_complement(T, w, eps=solver_eps)
     @test opt1 ≈ opt0  atol=tol
 else
-    @time opt1, _, y = dsw_via_complement(T, w, eps=eps)
+    @time opt1, _, y = dsw_via_complement(T, w, eps=solver_eps)
     @test opt1 ≈ opt0  atol=tol
-    @time opt2, x2, Z2 = dsw(T, y, eps=eps)
+    @time opt2, x2, Z2 = dsw(T, y, eps=solver_eps)
     @test opt2 ≈ 1  atol=tol
 end
 

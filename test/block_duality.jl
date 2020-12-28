@@ -2,7 +2,7 @@ function f(g, w, v)
     n = size(w, 1)
     q = HermitianSemidefinite(n)
     problem = maximize(real(tr(w * q')), [ Ψ(g, q) ⪯ v ])
-    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
+    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=solver_eps))
     return problem.optval
 end
 
@@ -17,7 +17,7 @@ function g(g, w)
     problem = minimize(real(tr(D * z)), [ z ⪰ w ])
     #problem = minimize(real(tr(z)), [ z ⪰ √D * w * √D ])
 
-    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
+    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=solver_eps))
     return problem.optval
 end
 
@@ -29,7 +29,7 @@ end
 #    #problem = minimize(real(tr(D * √y * z * √y)), [ z ⪰ w ])
 #    #problem = minimize(real(tr(z)), [ z ⪰ √D * √y * w * √y * √D ])
 #
-#    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
+#    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=solver_eps))
 #    return problem.optval
 #end
 
@@ -46,12 +46,12 @@ T = complement(S)
 
 w = random_bounded(S.n)
 
-@time opt0 = dsw(S, w, eps=eps)[1]
-@time opt1, x, y = dsw_via_complement(T, w, eps=eps)
+@time opt0 = dsw(S, w, eps=solver_eps)[1]
+@time opt1, x, y = dsw_via_complement(T, w, eps=solver_eps)
 @test opt1 ≈ opt0  atol=tol
-@time opt2 = dsw(T, y, eps=eps)[1]
+@time opt2 = dsw(T, y, eps=solver_eps)[1]
 @test opt2 ≈ 1  atol=tol
-@time opt3 = dsw(vertex_graph(S), √y * w * √y, eps=eps)[1]
+@time opt3 = dsw(vertex_graph(S), √y * w * √y, eps=solver_eps)[1]
 @test opt3 ≈ opt0  atol=tol
 # ϑ(S, w) = max{ ϑ(S0, √y * w * √y) / ϑ(T, y) : y ∈ S1 }
 @test opt0 ≈ opt3 / opt2  atol=tol

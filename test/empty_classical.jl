@@ -9,5 +9,5 @@ w = random_bounded(n)
 
 X = HermitianSemidefinite(n)
 problem = maximize(real(tr(X * w)), [ X[i,i] == 1 for i in 1:n ])
-solve!(problem, () -> SCS.Optimizer(verbose=0, eps=eps))
+solve!(problem, () -> SCS.Optimizer(verbose=0, eps=solver_eps))
 @test λ ≈ problem.optval  atol=tol
