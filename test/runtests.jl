@@ -60,7 +60,7 @@ end
 @testset "Classical graph" begin
     n = 7
     G = cycle_graph(n)
-    S = classical_S0Graph(G)
+    S = S0Graph(G)
     @time λ = dsw(S, eye(n), eps=eps)[1]
     @test λ ≈ n*cos(pi/n) / (1 + cos(pi/n))  atol=tol
 end
@@ -80,7 +80,7 @@ end
     w = random_bounded(S.n)
 
     @time opt1 = dsw(S, w, eps=eps)[1]
-    @time opt2 = dsw_antiblocker(complement(S), w, eps=eps)[1]
+    @time opt2 = dsw_via_complement(complement(S), w, eps=eps)[1]
     @test opt1 ≈ opt2  atol=tol
 end
 
@@ -99,7 +99,7 @@ end
     w = random_bounded(S.n)
 
     @time opt0 = dsw(S, w, eps=eps)[1]
-    @time opt1, x, y = dsw_antiblocker(T, w, eps=eps)
+    @time opt1, x, y = dsw_via_complement(T, w, eps=eps)
     @test opt1 ≈ opt0  atol=tol
     @time opt2 = dsw(T, y, eps=eps)[1]
     @test opt2 ≈ 1  atol=tol
@@ -110,6 +110,30 @@ end
 
     @test f(S, w, y) ≈ opt3  atol=tol
     @test g(S, √y * w * √y) ≈ opt3  atol=tol
+end
+
+@testset "Block duality 2" begin
+    Random.seed!(0)
+
+    #sig = [1 2; 2 2]
+    #sig = [1 1; 2 3]
+    #sig = [2 3]
+    #sig = [2 2]
+    sig = [3 2; 2 3]
+
+    S = random_S0Graph(sig)
+    T = complement(S)
+
+    w = random_element(S.S1)
+    w = w*w'
+    @test w in S.S1
+
+    @time opt0 = dsw(S, w, eps=eps)[1]
+    @time opt1, x, y = dsw_via_complement(T, w, eps=eps)
+    @test opt1 ≈ opt0  atol=tol
+    @time opt2 = dsw(T, y, eps=eps)[1]
+    @test opt2 ≈ 1  atol=tol
+    @test real(tr(w * √S.D * y * √S.D)) ≈ opt0 * opt2  atol=tol
 end
 
 # slow and doesn't meet accuracy tolerance
@@ -192,10 +216,10 @@ end
 
     @time opt0, x1, Z1 = dsw(S, w, eps=eps)
     if true
-        @time opt1, _, x2, Z2 = dsw_antiblocker(T, w, eps=eps)
+        @time opt1, _, x2, Z2 = dsw_via_complement(T, w, eps=eps)
         @test opt1 ≈ opt0  atol=tol
     else
-        @time opt1, _, y = dsw_antiblocker(T, w, eps=eps)
+        @time opt1, _, y = dsw_via_complement(T, w, eps=eps)
         @test opt1 ≈ opt0  atol=tol
         @time opt2, x2, Z2 = dsw(T, y, eps=eps)
         @test opt2 ≈ 1  atol=tol

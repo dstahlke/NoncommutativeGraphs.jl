@@ -2,6 +2,7 @@ module NoncommutativeGraphs
 
 import Base.==
 
+using DocStringExtensions
 using Subspaces
 using Convex, SCS, LinearAlgebra
 using Random, RandomMatrices
@@ -12,19 +13,30 @@ export AlgebraShape
 export S0Graph
 export create_S0_S1
 export random_S0Graph, empty_S0Graph, complement, vertex_graph, forget_S0
-export classical_S0Graph
 export from_block_spaces, get_block_spaces
 export block_expander
 export random_S1_unitary
 
 export Ψ
 export dsw_schur, dsw_schur2
-export dsw, dsw_antiblocker
+export dsw, dsw_via_complement
 
 eye(n) = Matrix(1.0*I, (n,n))
 
+"""
+The structure of a finite dimensional C*-algebra.
+
+- For example, `[1 2; 3 4]` corresponds to S₀ = M₁⊗I₂ ⊕ M₃⊗I₄.
+- For an n-dimensional non-commutative graph use `[1 n]` for S₀ = Iₙ.
+- For an n-vertex classical graph use `ones(Integer, n, 2)` for S₀ = diagonals.
+"""
 AlgebraShape = Array{<:Integer, 2}
 
+"""
+    create_S0_S1(sig::AlgebraShape) -> Tuple{Subspace, Subspace}
+
+Create a C*-algebra and its commutant with the given structure.
+"""
 function create_S0_S1(sig::AlgebraShape)
     blocks0 = []
     blocks1 = []
@@ -54,12 +66,27 @@ function create_S0_S1(sig::AlgebraShape)
     return S0, S1
 end
 
+"""
+    S0Graph(sig::AlgebraShape, S::Subspace{ComplexF64, 2})
+
+    S0Graph(g::AbstractGraph)
+
+Represents an S₀-graph as defined in arxiv:1002.2514.
+
+$(TYPEDFIELDS)
+"""
 struct S0Graph
+    """Dimension of Hilbert space A such that S ⊆ L(A)"""
     n::Integer
+    """Structure of C*-algebra S₀"""
     sig::AlgebraShape
+    """Subspace that defines the graph"""
     S::Subspace{ComplexF64, 2}
+    """C*-algebra S₀"""
     S0::Subspace{ComplexF64, 2}
-    S1::Subspace{ComplexF64, 2} # commutant of S0
+    """Commutant of C*-algebra S₀"""
+    S1::Subspace{ComplexF64, 2}
+    """Block scaling array D from definition 23 of arxiv:XXX.XXX"""
     D::Array{Float64, 2}
 
     function S0Graph(sig::AlgebraShape, S::Subspace{ComplexF64, 2})
@@ -90,10 +117,25 @@ function show(io::IO, g::S0Graph)
     print(io, "S0Graph{S0=$(g.sig) S=$(g.S)}")
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Returns the S₀-graph with S=S₀.
+"""
 vertex_graph(g::S0Graph) = S0Graph(g.sig, g.S0)
 
+"""
+$(TYPEDSIGNATURES)
+
+Returns an S₀-graph with S₀=ℂI.
+"""
 forget_S0(g::S0Graph) = S0Graph([1 g.n], g.S)
 
+"""
+    random_S0Graph(sig::AlgebraShape) -> S0Graph
+
+Creates a random S₀-graph with S₀ having the given structure.
+"""
 function random_S0Graph(sig::AlgebraShape)
     S0, S1 = create_S0_S1(sig)
 
@@ -124,28 +166,21 @@ function random_S0Graph(sig::AlgebraShape)
     return S0Graph(sig, S)
 end
 
+"""
+    empty_S0Graph(sig::AlgebraShape) -> S0Graph
+
+Creates an empty S₀-graph (i.e. S=S₀) with S₀ having the given structure.
+"""
 function empty_S0Graph(sig::AlgebraShape)
     S0, S1 = create_S0_S1(sig)
     return S0Graph(sig, S0)
 end
 
-function classical_S0Graph(g::AbstractGraph)
-    sig = ones(Int64, nv(g), 2)
-    basis = Array{Array{ComplexF64}, 1}()
-    for e in edges(g)
-        m = zeros(nv(g), nv(g))
-        m[src(e), dst(e)] = 1
-        push!(basis, m)
-        push!(basis, m')
-    end
-    for i in 1:nv(g)
-        m = zeros(nv(g), nv(g))
-        m[i, i] = 1
-        push!(basis, m)
-    end
-    return S0Graph(sig, Subspace(basis))
-end
+"""
+$(TYPEDSIGNATURES)
 
+Returns the complement graph perp(S) + S₀.
+"""
 complement(g::S0Graph) = S0Graph(g.sig, perp(g.S) | g.S0)
 
 function ==(a::S0Graph, b::S0Graph)
@@ -221,6 +256,9 @@ function block_expander(sig::AlgebraShape)
     return reshape(J, (n^2, size(J)[3]))
 end
 
+"""
+Returns a random unitary in the commutant of S₀.
+"""
 function random_S1_unitary(sig::AlgebraShape)
     return cat([
         kron(eye(dA), rand(Haar(2), dY))
@@ -244,6 +282,11 @@ function diagcat(args::Convex.AbstractExprOrValue...)
     ]...)
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Block scaling superoperator Ψ from definition 23 of arxiv:XXX.XXX
+"""
 function Ψ(g::S0Graph, w::Union{AbstractArray{<:Number, 2}, Variable})
     n = g.n
     da_sizes = g.sig[:,1]
@@ -266,7 +309,16 @@ function Ψ(g::S0Graph, w::Union{AbstractArray{<:Number, 2}, Variable})
     return out
 end
 
-function dsw_schur(g::S0Graph)
+"""
+$(TYPEDSIGNATURES)
+
+Schur complement form of weighted θ from theorem 14 of arxiv:XXX.XXX.
+
+Returns λ, w, and Z variables (for Convex.jl) in a named tuple.
+
+See also: [`dsw_schur2`](@ref).
+"""
+function dsw_schur(g::S0Graph)::NamedTuple{(:λ, :w, :Z), Tuple{Convex.AbstractExpr, Convex.AbstractExpr, Convex.AbstractExpr}}
     n = size(g.S)[1]
 
     Z = sum(kron(m, ComplexVariable(n, n)) for m in hermitian_basis(g.S))
@@ -286,8 +338,17 @@ function dsw_schur(g::S0Graph)
     return (λ=λ, w=transpose(wt), Z=Z)
 end
 
-# Like dsw_schur except much faster (when S0 != I), but w is constrained to S1.
-function dsw_schur2(g::S0Graph)
+"""
+$(TYPEDSIGNATURES)
+
+Schur complement form of weighted θ from theorem 14 of arxiv:XXX.XXX, optimized for the
+case S₀ ≠ ℂI, at the cost of w being constrained to S₁ (the commutant of S₀).
+
+Returns λ, w, and Z variables (for Convex.jl) in a named tuple.
+
+See also: [`dsw_schur2`](@ref).
+"""
+function dsw_schur2(g::S0Graph)::NamedTuple{(:λ, :w, :Z), Tuple{Convex.AbstractExpr, Convex.AbstractExpr, Convex.AbstractExpr}}
     da_sizes = g.sig[:,1]
     dy_sizes = g.sig[:,2]
     num_blocks = size(g.sig)[1]
@@ -342,6 +403,15 @@ function dsw_schur2(g::S0Graph)
     return (λ=λ, w=transpose(wt), Z=Z)
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Compute weighted θ using theorem 14 of arxiv:XXX.XXX.
+
+Returns optimal λ, x, and Z values in a named tuple.
+If `use_diag_optimization=true` (the default) then `x ⪰ w` and `x` is in the commutant
+of S₀.  By theorem 29 of arxiv:XXX.XXX, θ(g, w) = θ(g, x).
+"""
 function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true, eps=1e-6, verbose=0)
     if use_diag_optimization
         λ, x, Z = dsw_schur2(g)
@@ -354,7 +424,19 @@ function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=tr
     return (λ=problem.optval, x=Hermitian(evaluate(x)), Z=Hermitian(evaluate(Z)))
 end
 
-function dsw_antiblocker(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true, eps=1e-6, verbose=0)
+"""
+$(TYPEDSIGNATURES)
+
+Compute weighted θ via the complement graph, using theorem 29 of arxiv:XXX.XXX.
+
+θ(S, w) = max{ tr(w x) : x ⪰ 0, y = Ψ(x), θ(Sᶜ, y) ≤ 1 }
+
+Returns optimal λ, x, y, and Z in a named tuple.
+
+If w is in the commutant of S₀ then the weights w and y saturate the inequality in
+theorem 32 of arxiv:XXX.XXX.
+"""
+function dsw_via_complement(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true, eps=1e-6, verbose=0)
     # max{ <w,x> : Ψ(S, x) ⪯ y, ϑ(S, y) ≤ 1, y ∈ S1 }
     # equal to:
     # max{ dsw(S0, √y * w * √y) : dsw(complement(S), y) <= 1 }

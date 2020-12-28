@@ -36,7 +36,7 @@ julia> W = randn(ComplexF64, S.n, S.n); W = W' * W; # random weight operator
 
 julia> opt1 = dsw(S, W, eps=1e-7).λ;
 
-julia> opt2 = dsw_antiblocker(complement(S), W, eps=1e-7).λ;
+julia> opt2 = dsw_via_complement(complement(S), W, eps=1e-7).λ;
 
 julia> abs(opt1 - opt2) < 1e-6
 true
