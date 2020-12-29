@@ -4,6 +4,7 @@ authors = ["Dan Stahlke <dan@stahlke.org>"]
 version = "0.1.0"
 
 [deps]
+Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
 Convex = "f65535da-76fb-5f13-bab9-19810c17039a"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 LightGraphs = "093fc24a-ae57-5d10-9952-331d41423f4d"
@@ -15,6 +16,7 @@ Subspaces = "922a6ab9-c04b-46bc-b8bf-400344129a3c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
+Compat = "^2"
 Convex = "^0.13"
 DocStringExtensions = "^0.8"
 LightGraphs = "^1"

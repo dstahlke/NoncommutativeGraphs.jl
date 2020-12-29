@@ -15,7 +15,7 @@ FIXME update arxiv reference
 
 ## Example
 
-```jldoctest
+```jldoctest; filter = r"133\.5780.*"
 julia> using NoncommutativeGraphs, Random
 
 julia> Random.seed!(0);

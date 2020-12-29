@@ -7,6 +7,7 @@ using Subspaces
 using Convex, SCS, LinearAlgebra
 using Random, RandomMatrices
 using LightGraphs
+using Compat
 import Base.show
 
 export AlgebraShape
@@ -40,7 +41,7 @@ Create a C*-algebra and its commutant with the given structure.
 function create_S0_S1(sig::AlgebraShape)
     blocks0 = []
     blocks1 = []
-    for row in eachrow(sig)
+    @compat for row in eachrow(sig)
         if length(row) != 2
             throw(ArgumentError("row length must be 2"))
         end
@@ -248,7 +249,7 @@ function block_expander(sig::AlgebraShape)
 
     n = sum(prod(sig, dims=2))
 
-    J = cat([
+    @compat J = cat([
         cat([ kron(eye(dA), basis_mat(dY, i)) for i in 1:dY^2 ]..., dims=3)
         for (dA, dY) in eachrow(sig)
     ]..., dims=(1,2,3))
@@ -260,7 +261,7 @@ end
 Returns a random unitary in the commutant of S₀.
 """
 function random_S1_unitary(sig::AlgebraShape)
-    return cat([
+    @compat return cat([
         kron(eye(dA), rand(Haar(2), dY))
         for (dA, dY) in eachrow(sig)
     ]..., dims=(1,2))
