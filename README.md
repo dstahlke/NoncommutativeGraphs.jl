@@ -7,7 +7,7 @@ of graphs, as defined in Duan, Severini, Winter,
 Lovasz theta function*, [arXiv:1002.2514](https://arxiv.org/abs/1002.2514).
 
 Aside from a data structure for holding such graphs, we provide functions for
-computing the weighted Lovasz ``\tilde{\vartheta}`` function as defined in
+computing the weighted Lovasz theta function as defined in
 Stahlke, *Weighted theta functions for non-commutative graphs*,
 [arXiv:XXX.XXX](https://arxiv.org/abs/XXX.XXX).
 
