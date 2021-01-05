@@ -16,7 +16,8 @@ export create_S0_S1
 export random_S0Graph, empty_S0Graph, complement, vertex_graph, forget_S0
 export from_block_spaces, get_block_spaces
 export block_expander
-export random_S1_unitary
+export random_S0_unitary, random_S0_density
+export random_S1_unitary, random_S1_density
 
 export Ψ
 export dsw_schur, dsw_schur2
@@ -257,6 +258,32 @@ function block_expander(sig::AlgebraShape)
     return reshape(J, (n^2, size(J)[3]))
 end
 
+function random_positive(n)
+    U = rand(Haar(2), n)
+    return Hermitian(U' * Diagonal(rand(n)) * U)
+end
+
+"""
+Returns a random unitary in S₀.
+"""
+function random_S0_unitary(sig::AlgebraShape)
+    @compat return cat([
+        kron(rand(Haar(2), dA), eye(dY))
+        for (dA, dY) in eachrow(sig)
+    ]..., dims=(1,2))
+end
+
+"""
+Returns a random density operator in S₀.
+"""
+function random_S0_density(sig::AlgebraShape)
+    @compat ρ = cat([
+        kron(random_positive(dA), eye(dY))
+        for (dA, dY) in eachrow(sig)
+    ]..., dims=(1,2))
+    return ρ / tr(ρ)
+end
+
 """
 Returns a random unitary in the commutant of S₀.
 """
@@ -265,6 +292,17 @@ function random_S1_unitary(sig::AlgebraShape)
         kron(eye(dA), rand(Haar(2), dY))
         for (dA, dY) in eachrow(sig)
     ]..., dims=(1,2))
+end
+
+"""
+Returns a random density operator in the commutant of S₀.
+"""
+function random_S1_density(sig::AlgebraShape)
+    @compat ρ = cat([
+        kron(eye(dA), random_positive(dY))
+        for (dA, dY) in eachrow(sig)
+    ]..., dims=(1,2))
+    return ρ / tr(ρ)
 end
 
 ###############
