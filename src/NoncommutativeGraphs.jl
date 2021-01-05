@@ -87,7 +87,7 @@ struct S0Graph
     S0::Subspace{ComplexF64, 2}
     """Commutant of C*-algebra S₀"""
     S1::Subspace{ComplexF64, 2}
-    """Block scaling array D from definition 23 of arxiv:XXX.XXX"""
+    """Block scaling array D from definition 23 of arxiv:2101.00162"""
     D::Array{Float64, 2}
 
     function S0Graph(sig::AlgebraShape, S::Subspace{ComplexF64, 2})
@@ -286,7 +286,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Block scaling superoperator Ψ from definition 23 of arxiv:XXX.XXX
+Block scaling superoperator Ψ from definition 23 of arxiv:2101.00162
 """
 function Ψ(g::S0Graph, w::Union{AbstractArray{<:Number, 2}, Variable})
     n = g.n
@@ -313,7 +313,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Schur complement form of weighted θ from theorem 14 of arxiv:XXX.XXX.
+Schur complement form of weighted θ from theorem 14 of arxiv:2101.00162.
 
 Returns λ, w, and Z variables (for Convex.jl) in a named tuple.
 
@@ -342,7 +342,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Schur complement form of weighted θ from theorem 14 of arxiv:XXX.XXX, optimized for the
+Schur complement form of weighted θ from theorem 14 of arxiv:2101.00162, optimized for the
 case S₀ ≠ ℂI, at the cost of w being constrained to S₁ (the commutant of S₀).
 
 Returns λ, w, and Z variables (for Convex.jl) in a named tuple.
@@ -407,11 +407,11 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Compute weighted θ using theorem 14 of arxiv:XXX.XXX.
+Compute weighted θ using theorem 14 of arxiv:2101.00162.
 
 Returns optimal λ, x, and Z values in a named tuple.
 If `use_diag_optimization=true` (the default) then `x ⪰ w` and `x` is in the commutant
-of S₀.  By theorem 29 of arxiv:XXX.XXX, θ(g, w) = θ(g, x).
+of S₀.  By theorem 29 of arxiv:2101.00162, θ(g, w) = θ(g, x).
 """
 function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true, eps=1e-6, verbose=0)
     if use_diag_optimization
@@ -428,14 +428,14 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Compute weighted θ via the complement graph, using theorem 29 of arxiv:XXX.XXX.
+Compute weighted θ via the complement graph, using theorem 29 of arxiv:2101.00162.
 
 θ(S, w) = max{ tr(w x) : x ⪰ 0, y = Ψ(x), θ(Sᶜ, y) ≤ 1 }
 
 Returns optimal λ, x, y, and Z in a named tuple.
 
 If w is in the commutant of S₀ then the weights w and y saturate the inequality in
-theorem 32 of arxiv:XXX.XXX.
+theorem 32 of arxiv:2101.00162.
 """
 function dsw_via_complement(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=true, eps=1e-6, verbose=0)
     # max{ <w,x> : Ψ(S, x) ⪯ y, ϑ(S, y) ≤ 1, y ∈ S1 }

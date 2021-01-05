@@ -9,7 +9,7 @@ Lovasz theta function*, [arXiv:1002.2514](https://arxiv.org/abs/1002.2514).
 Aside from a data structure for holding such graphs, we provide functions for
 computing the weighted Lovasz theta function as defined in
 Stahlke, *Weighted theta functions for non-commutative graphs*,
-[arXiv:XXX.XXX](https://arxiv.org/abs/XXX.XXX).
+[arXiv:2101.00162](https://arxiv.org/abs/2101.00162).
 
 FIXME update arxiv reference
 
@@ -36,7 +36,7 @@ julia> W = randn(ComplexF64, S.n, S.n); W = W' * W; # random weight operator
 julia> opt1 = dsw(S, W, eps=1e-7).λ # compute weighted theta
 133.57806623525727
 
-julia> opt2 = dsw_via_complement(complement(S), W, eps=1e-7).λ # compute weighted θ via the complement graph, using theorem 29 of arxiv:XXX.XXX.
+julia> opt2 = dsw_via_complement(complement(S), W, eps=1e-7).λ # compute weighted θ via the complement graph, using theorem 29 of arxiv:2101.00162.
 133.57806730600717
 
 julia> abs(opt1 - opt2) / abs(opt1 + opt2) < 1e-6
