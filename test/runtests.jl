@@ -41,4 +41,8 @@ end
     include("empty_classical.jl")
 end
 
+@testset "Entropy splitting" begin
+    include("entropy_splitting.jl")
+end
+
 end # NoncommutativeGraphsTesting
