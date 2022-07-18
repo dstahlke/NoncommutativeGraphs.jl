@@ -6,7 +6,7 @@ using DocStringExtensions
 using Subspaces
 using Convex, SCS, LinearAlgebra
 using Random, RandomMatrices
-using LightGraphs
+using Graphs
 using Compat
 import Base.show
 

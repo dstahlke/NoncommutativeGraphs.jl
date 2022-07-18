@@ -1,4 +1,4 @@
-using LightGraphs: cycle_graph
+using Graphs: cycle_graph
 
 n = 7
 G = cycle_graph(n)
