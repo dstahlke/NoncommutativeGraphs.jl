@@ -16,11 +16,4 @@ Subspaces = "922a6ab9-c04b-46bc-b8bf-400344129a3c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
-Compat = "^2, ^3"
-Convex = "^0.13, 0.14"
-DocStringExtensions = "^0.8"
-LightGraphs = "^1"
-RandomMatrices = "^0.5"
-SCS = "^0.7"
-Subspaces = "^0.1"
-julia = "^1.0.5"
+julia = "^1.6"
