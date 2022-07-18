@@ -18,3 +18,4 @@ eye(n) = Matrix(1.0*I, (n,n))
 
 solver_eps = 1e-7
 tol = 1e-6
+make_optimizer = NoncommutativeGraphs.make_optimizer

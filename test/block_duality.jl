@@ -2,7 +2,7 @@ function f(g, w, v)
     n = size(w, 1)
     q = HermitianSemidefinite(n)
     problem = maximize(real(tr(w * q')), [ Ψ(g, q) ⪯ v ])
-    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=solver_eps))
+    solve!(problem, () -> make_optimizer(0, solver_eps))
     return problem.optval
 end
 
@@ -17,7 +17,7 @@ function g(g, w)
     problem = minimize(real(tr(D * z)), [ z ⪰ w ])
     #problem = minimize(real(tr(z)), [ z ⪰ √D * w * √D ])
 
-    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=solver_eps))
+    solve!(problem, () -> make_optimizer(0, solver_eps))
     return problem.optval
 end
 
@@ -29,7 +29,7 @@ end
 #    #problem = minimize(real(tr(D * √y * z * √y)), [ z ⪰ w ])
 #    #problem = minimize(real(tr(z)), [ z ⪰ √D * √y * w * √y * √D ])
 #
-#    solve!(problem, () -> SCS.Optimizer(verbose=0, eps=solver_eps))
+#    solve!(problem, () -> make_optimizer(0, solver_eps))
 #    return problem.optval
 #end
 

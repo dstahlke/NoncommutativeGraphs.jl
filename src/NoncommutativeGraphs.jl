@@ -8,6 +8,7 @@ using Convex, SCS, LinearAlgebra
 using Random, RandomMatrices
 using Graphs
 using Compat
+using MathOptInterface
 import Base.show
 
 export AlgebraShape
@@ -23,7 +24,23 @@ export Ψ
 export dsw_schur, dsw_schur2
 export dsw, dsw_via_complement
 
+MOI = MathOptInterface
+
 eye(n) = Matrix(1.0*I, (n,n))
+
+function make_optimizer(verbose, eps)
+    optimizer = SCS.Optimizer()
+    if isdefined(MOI, :RawOptimizerAttribute) # as of MathOptInterface v0.10.0
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), verbose)
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("eps_rel"), eps)
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("eps_abs"), eps)
+    else
+        MOI.set(optimizer, MOI.RawParameter("verbose"), verbose)
+        MOI.set(optimizer, MOI.RawParameter("eps_rel"), eps)
+        MOI.set(optimizer, MOI.RawParameter("eps_abs"), eps)
+    end
+    return optimizer
+end
 
 """
 The structure of a finite dimensional C*-algebra.
@@ -459,7 +476,7 @@ function dsw(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_optimization=tr
     end
 
     problem = minimize(λ, [x ⪰ w])
-    solve!(problem, () -> SCS.Optimizer(verbose=verbose, eps=eps))
+    solve!(problem, () -> make_optimizer(verbose, eps))
     return (λ=problem.optval, x=Hermitian(evaluate(x)), Z=Hermitian(evaluate(Z)))
 end
 
@@ -486,7 +503,7 @@ function dsw_via_complement(g::S0Graph, w::AbstractArray{<:Number, 2}; use_diag_
     end
     x = HermitianSemidefinite(g.n, g.n)
     problem = maximize(real(tr(w * x')), [ λ <= 1, Ψ(g, x) == y ])
-    solve!(problem, () -> SCS.Optimizer(verbose=verbose, eps=eps))
+    solve!(problem, () -> make_optimizer(verbose, eps))
     return (λ=problem.optval, x=Hermitian(evaluate(x)), y=Hermitian(evaluate(y)), Z=Hermitian(evaluate(Z)))
 end
 

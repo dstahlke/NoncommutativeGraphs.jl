@@ -9,13 +9,13 @@ w /= tr(w)
 
 λ, x1, Z = dsw_schur2(S)
 problem = maximize(trace_logm(x1, w), [ λ <= 1 ])
-@time solve!(problem, () -> SCS.Optimizer(verbose=0, eps=solver_eps))
+@time solve!(problem, () -> make_optimizer(0, solver_eps))
 h1=problem.optval
 x1=Hermitian(evaluate(x1))
 
 λ, x2, Z = dsw_schur2(complement(S))
 problem = maximize(trace_logm(x2, w), [ λ <= 1 ])
-@time solve!(problem, () -> SCS.Optimizer(verbose=0, eps=solver_eps))
+@time solve!(problem, () -> make_optimizer(0, solver_eps))
 h2=problem.optval
 x2=Hermitian(evaluate(x2))
 
