@@ -11,8 +11,6 @@ computing the weighted Lovasz theta function as defined in
 Stahlke, *Weighted theta functions for non-commutative graphs*,
 [arXiv:2101.00162](https://arxiv.org/abs/2101.00162).
 
-FIXME update arxiv reference
-
 ## Example
 
 ```julia
@@ -23,13 +21,13 @@ julia> Random.seed!(0);
 julia> sig = [3 2; 2 3]; # S₀ algebra is M₃⊗I₂ ⊕ M₂⊗I₃
 
 julia> S = random_S0Graph(sig)
-S0Graph{S0=[3 2; 2 3] S=Subspace{Complex{Float64}} size (12, 12) dim 83}
+S0Graph{S0=[3 2; 2 3] S=Subspace{ComplexF64} size (12, 12) dim 83}
 
 julia> S.S0 # vertex C*-algebra
-Subspace{Complex{Float64}} size (12, 12) dim 13
+Subspace{ComplexF64} size (12, 12) dim 13
 
 julia> T = complement(S) # T = perp(S) + S₀
-S0Graph{S0=[3 2; 2 3] S=Subspace{Complex{Float64}} size (12, 12) dim 74}
+S0Graph{S0=[3 2; 2 3] S=Subspace{ComplexF64} size (12, 12) dim 74}
 
 julia> W = randn(ComplexF64, S.n, S.n); W = W' * W; # random weight operator
 
