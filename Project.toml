@@ -1,7 +1,7 @@
 name = "NoncommutativeGraphs"
 uuid = "3c3e07df-3689-4029-aba7-dd69ca7e6285"
 authors = ["Dan Stahlke <dan@stahlke.org>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
